@@ -1,10 +1,11 @@
 
 import { GoogleGenAI } from "@google/genai";
 
+const GEMINI_API_KEY = "AIzaSyDF1zZHBWlmZ6HNOWDUahoE1D4IN3iC89k";
+
 export const getTaxAdvice = async (query: string) => {
   try {
-    // Fix: Using process.env.API_KEY directly as required by guidelines
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `You are a helpful Indian Tax Assistant. Explain simply for a layperson (or an aged person) the following tax query: ${query}. Focus on Indian Income Tax laws.`,

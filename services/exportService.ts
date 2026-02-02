@@ -5,7 +5,7 @@ import { SavedCalculation } from '../types';
 
 export const exportToExcel = (calc: SavedCalculation) => {
   const data = [
-    ["TaxAmbit - Professional Calculation Report"],
+    ["Quick Accounting Service - Professional Calculation Report"],
     ["User:", calc.userEmail],
     ["Label:", calc.label],
     ["Date:", new Date(calc.timestamp).toLocaleString()],
@@ -36,7 +36,7 @@ export const exportToPDF = (calc: SavedCalculation) => {
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont("helvetica", "bold");
-  doc.text("TaxAmbit", 15, 20);
+  doc.text("Quick Accounting Service", 15, 20);
   
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
@@ -88,7 +88,7 @@ export const exportToPDF = (calc: SavedCalculation) => {
   doc.setFontSize(8);
   doc.setTextColor(100, 116, 139);
   doc.text("This document is a computer-generated estimation and does not constitute legal tax advice.", 15, 280);
-  doc.text("TaxAmbit Solutions Pvt Ltd | ICAI Registered Member | www.taxambit.com", 15, 285);
+  doc.text("Quick Accounting Service | ICAI Registered Member | www.quickaccounting.com", 15, 285);
 
   doc.save(`${calc.label.replace(/\s+/g, '_')}_TaxAmbit.pdf`);
 };

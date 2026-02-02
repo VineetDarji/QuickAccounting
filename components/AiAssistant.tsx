@@ -27,7 +27,7 @@ const AiAssistant: React.FC = () => {
         <div className="bg-white w-80 md:w-96 h-[500px] shadow-2xl rounded-2xl flex flex-col border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4">
           <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
             <div>
-              <h3 className="font-bold">TaxAmbit Assistant</h3>
+              <h3 className="font-bold">Quick Assistant</h3>
               <p className="text-xs opacity-80">Powered by Gemini AI</p>
             </div>
             <button onClick={() => setIsOpen(false)} className="text-white hover:opacity-70 text-2xl">×</button>
