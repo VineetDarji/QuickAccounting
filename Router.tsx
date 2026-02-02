@@ -126,6 +126,14 @@ const Login: React.FC = () => {
             return;
         }
 
+        // Check if user exists with correct credentials
+        const user = findUser(email, password);
+        if (!user) {
+            setError('Invalid email or password. Please try again.');
+            setIsLoading(false);
+            return;
+        }
+
         // Generate verification code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
@@ -136,8 +144,7 @@ const Login: React.FC = () => {
                 if (success) {
                     toast.success(`Verification code sent to ${email}`);
                 } else {
-                    toast.error('Demo mode: Check console for code. (Email service unavailable)');
-                    console.log(`Demo verification code for ${email}: ${code}`);
+                    toast.error('Email service unavailable. Please try again later.');
                 }
                 setStep('verification');
                 setIsLoading(false);
@@ -327,10 +334,6 @@ const Login: React.FC = () => {
                                 <p className="text-sm font-semibold text-red-600 dark:text-red-400">❌ {error}</p>
                             </div>
                         )}
-
-                        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                            <p className="text-xs text-blue-700 dark:text-blue-300">💡 <span className="font-bold">Demo code:</span> {generatedCode}</p>
-                        </div>
 
                         <button
                             type="submit"

@@ -27,7 +27,7 @@ export const HraCalculator: React.FC<ToolProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `HRA ${rentPaid}`,
       type: 'INCOME_TAX',
       timestamp: Date.now(),
@@ -91,7 +91,7 @@ export const TdsCalculator: React.FC<ToolProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `TDS Section ${section}`,
       type: 'INCOME_TAX',
       timestamp: Date.now(),
@@ -150,7 +150,7 @@ export const NscCalculator: React.FC<ToolProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `NSC Invest ${invested}`,
       type: 'INCOME_TAX',
       timestamp: Date.now(),

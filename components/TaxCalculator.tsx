@@ -56,7 +56,7 @@ const TaxCalculator: React.FC<TaxCalculatorProps> = ({ user, onSave }) => {
     if (!user) return;
     const calc: SavedCalculation = {
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `Tax Calculation ${new Date().toLocaleDateString()}`,
       type: 'INCOME_TAX',
       timestamp: Date.now(),

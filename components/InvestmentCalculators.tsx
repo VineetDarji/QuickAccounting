@@ -27,7 +27,7 @@ export const SipCalculator: React.FC<ToolProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `SIP ${monthly}/m for ${years}y`,
       type: 'SIP',
       timestamp: Date.now(),
@@ -92,7 +92,7 @@ export const LumpsumCalculator: React.FC<ToolProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `Lumpsum ${invested} @ ${rate}%`,
       type: 'LUMPSUM',
       timestamp: Date.now(),

@@ -45,7 +45,7 @@ const CapitalGainsCalculator: React.FC<CapitalGainsCalculatorProps> = ({ user, o
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `${assetType} Gains ${res.gain}`,
       type: 'CAPITAL_GAINS',
       timestamp: Date.now(),

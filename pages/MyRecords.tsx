@@ -16,7 +16,7 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
   useEffect(() => {
     if (user) {
       const saved = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
-      setRecords(saved.filter((c: SavedCalculation) => c.userEmail === user.email));
+      setRecords(saved.filter((c: SavedCalculation) => c.userName === user.name));
     }
   }, [user]);
 
@@ -121,7 +121,7 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
 
               <div className="flex items-center gap-3">
                 <button onClick={() => exportToPDF(record)} className="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors" title="Export PDF">PDF</button>
-                <button onClick={() => exportToExcel(record)} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs hover:bg-green-100 transition-colors" title="Export Excel">Excel</button>
+                <button onClick={async () => await exportToExcel(record)} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs hover:bg-green-100 transition-colors" title="Export Excel">Excel</button>
                 <button onClick={() => handleDelete(record.id)} className="p-3 bg-slate-50 text-slate-400 rounded-xl font-bold text-xs hover:bg-slate-200 transition-colors" title="Delete">🗑️</button>
               </div>
             </div>

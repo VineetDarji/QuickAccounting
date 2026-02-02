@@ -40,7 +40,7 @@ const GstCalculator: React.FC<GstCalculatorProps> = ({ user, onSave }) => {
     if (!user) return;
     const calc: SavedCalculation = {
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `GST ${amount} @ ${rate}%`,
       type: 'GST',
       timestamp: Date.now(),

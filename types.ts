@@ -12,7 +12,7 @@ export interface Inquiry {
 
 export interface Activity {
   id: string;
-  userEmail: string;
+  userName: string;
   action: string;
   details: string;
   timestamp: number;
@@ -20,7 +20,7 @@ export interface Activity {
 
 export interface SavedCalculation {
   id: string;
-  userEmail: string;
+  userName: string;
   label: string;
   type: 'INCOME_TAX' | 'GST' | 'EMI' | 'SIP' | 'LUMPSUM' | 'CAPITAL_GAINS';
   timestamp: number;

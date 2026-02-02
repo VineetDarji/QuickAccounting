@@ -35,7 +35,7 @@ const LoanCalculator: React.FC<LoanCalculatorProps> = ({ user, onSave }) => {
     if (!user) return;
     onSave?.({
       id: Math.random().toString(36).substr(2, 9),
-      userEmail: user.email,
+      userName: user.name,
       label: label || `${loanType} Loan ₹${amount}`,
       type: 'EMI',
       timestamp: Date.now(),

@@ -148,7 +148,7 @@ const AdminDashboard: React.FC = () => {
                   activities.map((log) => (
                     <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 text-xs text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</td>
-                      <td className="px-6 py-4 text-sm font-bold text-slate-800">{log.userEmail}</td>
+                      <td className="px-6 py-4 text-sm font-bold text-slate-800">{log.userName}</td>
                       <td className="px-6 py-4">
                         <span className="px-2 py-1 bg-slate-900 text-white text-[10px] rounded font-black">{log.action}</span>
                       </td>
