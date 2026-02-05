@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import AdminDashboard from './AdminDashboard';
 import { SavedCalculation, User } from '../types';
 
@@ -129,6 +129,26 @@ const AdminDashboardMaster: React.FC<AdminDashboardMasterProps> = ({ user }) => 
           <p className="text-slate-500 dark:text-slate-400 mt-2">
             View all client calculations stored in this browser.
           </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to="/cases"
+              className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-200 hover:border-indigo-400 transition-all"
+            >
+              View Cases
+            </Link>
+            <Link
+              to="/admin/users"
+              className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-200 hover:border-indigo-400 transition-all"
+            >
+              Users & Permissions
+            </Link>
+            <Link
+              to="/admin/legacy"
+              className="px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm font-bold text-slate-800 dark:text-slate-200 hover:border-indigo-400 transition-all"
+            >
+              Legacy Admin
+            </Link>
+          </div>
         </div>
         <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-lg">
           <div className="text-[10px] font-black uppercase tracking-widest text-white/60">Total Calculations</div>

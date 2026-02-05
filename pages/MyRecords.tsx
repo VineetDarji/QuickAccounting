@@ -16,7 +16,9 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
   useEffect(() => {
     if (user) {
       const saved = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
-      setRecords(saved.filter((c: SavedCalculation) => c.userName === user.name));
+      setRecords(
+        saved.filter((c: SavedCalculation) => c.userEmail === user.email || c.userName === user.name)
+      );
     }
   }, [user]);
 

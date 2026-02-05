@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Inquiry, SavedCalculation, User } from '../types';
+import { listCasesForClient } from '../services/caseService';
 
 interface ClientDashboardProps {
   user: User | null;
@@ -26,8 +27,13 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user }) => {
       .sort((a, b) => b.timestamp - a.timestamp);
   }, [user.email, user.name]);
 
+  const myCases = useMemo(() => {
+    return listCasesForClient(user.email);
+  }, [user.email]);
+
   const latestCalc = myCalculations[0];
   const latestInquiry = myInquiries[0];
+  const latestCase = myCases[0];
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 space-y-10">
@@ -53,7 +59,23 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user }) => {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-6 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cases</p>
+          <p className="text-4xl font-black text-slate-900 dark:text-white mt-3">{myCases.length}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            Latest: {latestCase ? `${latestCase.title} (${latestCase.status.replace(/_/g, ' ')})` : 'None yet'}
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Link to="/cases" className="text-sm font-bold text-indigo-600 dark:text-indigo-400">
+              View cases →
+            </Link>
+            <Link to="/profile" className="text-sm font-bold text-slate-600 dark:text-slate-300">
+              Profile →
+            </Link>
+          </div>
+        </div>
+
         <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-6 shadow-sm">
           <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Saved Calculations</p>
           <p className="text-4xl font-black text-indigo-600 dark:text-indigo-400 mt-3">{myCalculations.length}</p>

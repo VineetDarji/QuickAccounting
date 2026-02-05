@@ -5,6 +5,7 @@ import { useUserStore } from './store/userStore';
 import toast from 'react-hot-toast';
 import { sendVerificationCode } from './services/emailService';
 import { CALCULATOR_CATEGORIES, CALCULATORS } from './config/calculators';
+import { logActivity } from './services/activityService';
 
 const Home = lazy(() => import('./pages/Home'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -16,6 +17,10 @@ const Visualizer = lazy(() => import('./pages/Visualizer'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
 const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Cases = lazy(() => import('./pages/Cases'));
+const CaseDetails = lazy(() => import('./pages/CaseDetails'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 
 const Login: React.FC = () => {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -472,8 +477,10 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
 
     const onSave = (calc: SavedCalculation) => {
         const existing = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
-        localStorage.setItem('tax_saved_calcs', JSON.stringify([...existing, calc]));
+        const enriched = user ? { ...calc, userEmail: user.email } : calc;
+        localStorage.setItem('tax_saved_calcs', JSON.stringify([...existing, enriched]));
         toast.success('Calculation saved successfully to your records!');
+        if (user) logActivity(user, 'SAVE_CALCULATION', `${enriched.type}: ${enriched.label}`);
     };
 
     const handleCategoryChange = (catId: 'TAX' | 'INVEST' | 'LOAN') => {
@@ -551,8 +558,12 @@ const AppRouter: React.FC<AppRouterProps> = ({ user }) => {
                 <Route path="/news" element={<TaxNews />} />
                 <Route path="/resources" element={<UsefulLinks />} />
                 <Route path="/records" element={<MyRecords user={user} />} />
+                <Route path="/profile" element={<Profile user={user} />} />
+                <Route path="/cases" element={<Cases user={user} />} />
+                <Route path="/cases/:caseId" element={<CaseDetails user={user} />} />
                 <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
                 <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboardMaster user={user} /> : <Navigate to="/login" />} />
+                <Route path="/admin/users" element={user?.role === 'admin' ? <AdminUsers user={user} /> : <Navigate to="/login" />} />
                 <Route path="/admin/legacy" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />} />
             </Routes>
         </Suspense>

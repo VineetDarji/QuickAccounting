@@ -22,13 +22,23 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
 
   if (user) {
     navItems.push({ label: 'Dashboard', path: '/dashboard' });
+    navItems.push({ label: 'Cases', path: '/cases' });
+    if (user.role === 'user') navItems.push({ label: 'Profile', path: '/profile' });
     navItems.push({ label: 'My Records', path: '/records' });
     navItems.push({ label: 'Book Expert', path: '/services' });
   }
 
   if (user?.role === 'admin') {
     navItems.push({ label: 'Admin Panel', path: '/admin' });
+    navItems.push({ label: 'Users', path: '/admin/users' });
   }
+
+  const isActive = (path: string) => {
+    if (path === '/dashboard') return location.pathname.startsWith('/dashboard');
+    if (path === '/cases') return location.pathname.startsWith('/cases');
+    if (path === '/admin') return location.pathname === '/admin' || location.pathname === '/admin/legacy';
+    return location.pathname === path;
+  };
 
   return (
     <nav className="glass-effect sticky top-0 z-50 border-b border-slate-200/30 dark:border-slate-700/50 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm dark:shadow-lg dark:shadow-slate-900/50">
@@ -45,13 +55,13 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                 key={item.path}
                 to={item.path}
                 className={`text-sm font-bold transition-all relative py-2 px-1 duration-300 ${
-                  location.pathname === item.path 
+                  isActive(item.path) 
                     ? 'text-indigo-600 dark:text-indigo-400' 
                     : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
                 }`}
               >
                 {item.label}
-                {location.pathname === item.path && (
+                {isActive(item.path) && (
                   <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full animate-slide-right" />
                 )}
               </Link>

@@ -13,6 +13,7 @@ export interface Inquiry {
 export interface Activity {
   id: string;
   userName: string;
+  userEmail?: string;
   action: string;
   details: string;
   timestamp: number;
@@ -21,11 +22,104 @@ export interface Activity {
 export interface SavedCalculation {
   id: string;
   userName: string;
+  userEmail?: string;
   label: string;
   type: 'INCOME_TAX' | 'GST' | 'EMI' | 'SIP' | 'LUMPSUM' | 'CAPITAL_GAINS';
   timestamp: number;
   inputs: any;
   results: any;
+}
+
+export interface ClientProfile {
+  email: string;
+  name: string;
+  phone: string;
+  whatsapp: string;
+  address: string;
+  pan: string;
+  aadhaar: string;
+  aadhaarDocument?: CaseDocument | null;
+  notificationPrefs: {
+    email: boolean;
+    whatsapp: boolean;
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type CaseStatus = 'NEW' | 'IN_REVIEW' | 'WAITING_ON_CLIENT' | 'SCHEDULED' | 'ON_HOLD' | 'COMPLETED';
+
+export interface CaseDocument {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  uploadedAt: number;
+}
+
+export type AppointmentMode = 'CALL' | 'VIDEO' | 'IN_PERSON';
+export type AppointmentStatus = 'REQUESTED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED';
+
+export interface CaseAppointment {
+  id: string;
+  requestedAt: number;
+  preferredDate: string;
+  preferredTime: string;
+  mode: AppointmentMode;
+  notes: string;
+  status: AppointmentStatus;
+  scheduledFor?: string;
+}
+
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID' | 'VOID';
+
+export interface CaseInvoice {
+  id: string;
+  number: string;
+  createdAt: number;
+  dueDate: string;
+  currency: 'INR';
+  amount: number;
+  description: string;
+  status: InvoiceStatus;
+  paymentLink: string;
+}
+
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE';
+
+export interface CaseTask {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  assigneeEmail?: string;
+  createdAt: number;
+  dueAt?: number;
+}
+
+export interface CaseInternalNote {
+  id: string;
+  authorEmail: string;
+  authorName: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface TaxCase {
+  id: string;
+  clientEmail: string;
+  clientName: string;
+  title: string;
+  service: string;
+  status: CaseStatus;
+  createdAt: number;
+  updatedAt: number;
+  providedData: Record<string, any>;
+  documents: CaseDocument[];
+  appointments: CaseAppointment[];
+  invoices: CaseInvoice[];
+  assignedToEmail: string;
+  internalNotes: CaseInternalNote[];
+  tasks: CaseTask[];
 }
 
 export interface TaxCalculationResult {

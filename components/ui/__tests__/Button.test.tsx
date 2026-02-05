@@ -7,7 +7,8 @@ describe('Button', () => {
     render(<Button>Click Me</Button>);
     const buttonElement = screen.getByText(/Click Me/i);
     expect(buttonElement).toBeInTheDocument();
-    expect(buttonElement).toHaveClass('bg-indigo-600'); // primary variant
+    expect(buttonElement).toHaveClass('from-indigo-600'); // primary variant (gradient)
+    expect(buttonElement).toHaveClass('to-purple-600');
     expect(buttonElement).toHaveClass('px-6'); // md size
   });
 
@@ -15,7 +16,8 @@ describe('Button', () => {
     render(<Button variant="secondary">Click Me</Button>);
     const buttonElement = screen.getByText(/Click Me/i);
     expect(buttonElement).toBeInTheDocument();
-    expect(buttonElement).toHaveClass('bg-slate-900');
+    expect(buttonElement).toHaveClass('from-slate-800');
+    expect(buttonElement).toHaveClass('to-slate-900');
   });
 
   test('renders with large size', () => {
