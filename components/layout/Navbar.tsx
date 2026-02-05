@@ -21,6 +21,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   ];
 
   if (user) {
+    navItems.push({ label: 'Dashboard', path: '/dashboard' });
     navItems.push({ label: 'My Records', path: '/records' });
     navItems.push({ label: 'Book Expert', path: '/services' });
   }

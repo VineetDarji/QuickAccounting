@@ -50,6 +50,6 @@ export enum AgeGroup {
 
 export interface User {
   email: string;
-  role: 'user' | 'admin';
+  role: 'user' | 'employee' | 'admin';
   name: string;
 }

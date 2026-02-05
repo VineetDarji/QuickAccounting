@@ -8,10 +8,14 @@ import { CALCULATOR_CATEGORIES, CALCULATORS } from './config/calculators';
 
 const Home = lazy(() => import('./pages/Home'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminDashboardMaster = lazy(() => import('./pages/AdminDashboardMaster'));
 const TaxNews = lazy(() => import('./pages/TaxNews'));
 const UsefulLinks = lazy(() => import('./pages/UsefulLinks'));
 const MyRecords = lazy(() => import('./pages/MyRecords'));
 const Visualizer = lazy(() => import('./pages/Visualizer'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const ClientDashboard = lazy(() => import('./pages/ClientDashboard'));
+const EmployeeDashboard = lazy(() => import('./pages/EmployeeDashboard'));
 
 const Login: React.FC = () => {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -537,6 +541,10 @@ const AppRouter: React.FC<AppRouterProps> = ({ user }) => {
         <Suspense fallback={<div>Loading...</div>}>
             <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/dashboard" element={<Dashboard user={user} />} />
+                <Route path="/dashboard/client" element={<ClientDashboard user={user} />} />
+                <Route path="/dashboard/employee" element={<EmployeeDashboard user={user} />} />
+                <Route path="/dashboard/admin" element={<AdminDashboardMaster user={user} />} />
                 <Route path="/services" element={<InquiryPage user={user} />} />
                 <Route path="/calculators" element={<CalculatorHub user={user} />} />
                 <Route path="/visualizer" element={<Visualizer />} />
@@ -544,7 +552,8 @@ const AppRouter: React.FC<AppRouterProps> = ({ user }) => {
                 <Route path="/resources" element={<UsefulLinks />} />
                 <Route path="/records" element={<MyRecords user={user} />} />
                 <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-                <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />} />
+                <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboardMaster user={user} /> : <Navigate to="/login" />} />
+                <Route path="/admin/legacy" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />} />
             </Routes>
         </Suspense>
     );
