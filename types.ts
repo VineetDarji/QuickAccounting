@@ -24,7 +24,29 @@ export interface SavedCalculation {
   userName: string;
   userEmail?: string;
   label: string;
-  type: 'INCOME_TAX' | 'GST' | 'EMI' | 'SIP' | 'LUMPSUM' | 'CAPITAL_GAINS';
+  type:
+    | 'INCOME_TAX'
+    | 'GST'
+    | 'EMI'
+    | 'SIP'
+    | 'LUMPSUM'
+    | 'CAPITAL_GAINS'
+    | 'DEDUCTIONS'
+    | 'ADVANCE_TAX'
+    | 'SALARY'
+    | 'GRATUITY'
+    | 'EPF'
+    | 'NPS'
+    | 'RENT_BUY'
+    | 'GST_LATE_FEE'
+    | 'GST_RCM'
+    | 'TDS_COMPLIANCE'
+    | 'TCS'
+    | 'PRESUMPTIVE_TAX'
+    | 'DEPRECIATION'
+    | 'FD'
+    | 'RD'
+    | 'PPF';
   timestamp: number;
   inputs: any;
   results: any;

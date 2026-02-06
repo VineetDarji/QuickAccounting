@@ -1,4 +1,4 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useMemo, useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import { User, Inquiry, SavedCalculation } from './types';
 import { useUserStore } from './store/userStore';
@@ -474,6 +474,8 @@ const InquiryPage: React.FC<{ user: User | null }> = ({ user }) => {
 const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
     const [category, setCategory] = useState<'TAX' | 'INVEST' | 'LOAN'>('TAX');
     const [subTool, setSubTool] = useState<string>('IT');
+    const [toolQuery, setToolQuery] = useState('');
+    const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
 
     const onSave = (calc: SavedCalculation) => {
         const existing = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
@@ -486,9 +488,20 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
     const handleCategoryChange = (catId: 'TAX' | 'INVEST' | 'LOAN') => {
         setCategory(catId);
         setSubTool(CALCULATORS[catId][0].id);
+        setToolQuery('');
+        setIsToolMenuOpen(false);
     };
 
-    const ActiveCalculator = CALCULATORS[category].find(c => c.id === subTool)?.component;
+    const tools = CALCULATORS[category];
+
+    const ActiveCalculator = tools.find(c => c.id === subTool)?.component;
+    const activeToolLabel = tools.find((t) => t.id === subTool)?.label || 'Select tool';
+
+    const filteredTools = useMemo(() => {
+        const q = toolQuery.trim().toLowerCase();
+        if (!q) return tools;
+        return tools.filter((t) => t.label.toLowerCase().includes(q) || t.id.toLowerCase().includes(q));
+    }, [toolQuery, tools]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 py-12 space-y-12">
@@ -512,19 +525,66 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
                 </div>
 
                 <div className="grid lg:grid-cols-4 gap-8">
-                    <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm h-fit">
-                        <p className="text-[10px] font-black uppercase text-slate-400 mb-4 tracking-widest">Select Tool</p>
-                        <div className="flex flex-col gap-2">
-                            {CALCULATORS[category].map(tool => (
-                                <button
-                                    key={tool.id}
-                                    onClick={() => setSubTool(tool.id)}
-                                    className={`text-left px-4 py-3 rounded-xl text-sm font-bold ${subTool === tool.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                                >
-                                    {tool.label}
-                                </button>
-                            ))}
+                    <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-6 shadow-sm h-fit">
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Select Tool</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                {tools.length} tools
+                            </p>
                         </div>
+
+                        <button
+                            type="button"
+                            onClick={() => setIsToolMenuOpen((v) => !v)}
+                            className="mt-4 w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm hover:border-indigo-400 transition-all"
+                            aria-label="Toggle tool menu"
+                        >
+                            <span className="truncate">{activeToolLabel}</span>
+                            <svg
+                                className={`w-4 h-4 transition-transform ${isToolMenuOpen ? 'rotate-180' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                                aria-hidden="true"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {isToolMenuOpen && (
+                            <div className="mt-4 space-y-3">
+                                <input
+                                    value={toolQuery}
+                                    onChange={(e) => setToolQuery(e.target.value)}
+                                    placeholder="Search tools..."
+                                    className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                                />
+                                <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto pr-1">
+                                    {filteredTools.map((tool) => (
+                                        <button
+                                            key={tool.id}
+                                            onClick={() => {
+                                                setSubTool(tool.id);
+                                                setIsToolMenuOpen(false);
+                                            }}
+                                            className={`text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${
+                                                subTool === tool.id
+                                                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200'
+                                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                            }`}
+                                        >
+                                            {tool.label}
+                                        </button>
+                                    ))}
+                                    {filteredTools.length === 0 && (
+                                        <div className="py-6 text-center text-sm font-bold text-slate-400">
+                                            No tools match your search.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="lg:col-span-3">
