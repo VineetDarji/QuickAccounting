@@ -1,11 +1,19 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
-import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, Inquiry, SavedCalculation } from './types';
 import { useUserStore } from './store/userStore';
 import toast from 'react-hot-toast';
 import { sendVerificationCode } from './services/emailService';
 import { CALCULATOR_CATEGORIES, CALCULATORS } from './config/calculators';
 import { logActivity } from './services/activityService';
+import {
+    clearRecentTools,
+    getToolPreferences,
+    makeToolKey,
+    recordToolUsage,
+    toggleFavoriteTool,
+    ToolCategoryId,
+} from './services/toolPreferencesService';
 
 const Home = lazy(() => import('./pages/Home'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
@@ -472,8 +480,19 @@ const InquiryPage: React.FC<{ user: User | null }> = ({ user }) => {
 };
 
 const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
-    const [category, setCategory] = useState<'TAX' | 'INVEST' | 'LOAN'>('TAX');
-    const [subTool, setSubTool] = useState<string>('IT');
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const [toolPrefs, setToolPrefs] = useState(() => getToolPreferences());
+
+    const [category, setCategory] = useState<ToolCategoryId>(() => toolPrefs.lastSelection?.category ?? 'TAX');
+    const [subTool, setSubTool] = useState<string>(() => {
+        const cat = toolPrefs.lastSelection?.category ?? 'TAX';
+        const requested = toolPrefs.lastSelection?.toolId;
+        const tools = CALCULATORS[cat];
+        if (requested && tools.some((t) => t.id === requested)) return requested;
+        return tools[0]?.id || 'IT';
+    });
     const [toolQuery, setToolQuery] = useState('');
     const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
 
@@ -485,17 +504,65 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
         if (user) logActivity(user, 'SAVE_CALCULATION', `${enriched.type}: ${enriched.label}`);
     };
 
-    const handleCategoryChange = (catId: 'TAX' | 'INVEST' | 'LOAN') => {
+    React.useEffect(() => {
+        setToolPrefs(recordToolUsage({ category, toolId: subTool }));
+    }, [category, subTool]);
+
+    React.useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const cat = params.get('cat');
+        const tool = params.get('tool');
+        if (!cat && !tool) return;
+
+        const nextCat = (cat === 'TAX' || cat === 'INVEST' || cat === 'LOAN' ? (cat as ToolCategoryId) : category) as ToolCategoryId;
+        const nextTools = CALCULATORS[nextCat];
+        const nextTool = tool && nextTools.some((t) => t.id === tool) ? tool : nextTools[0]?.id;
+
+        if (nextCat !== category) setCategory(nextCat);
+        if (nextTool && nextTool !== subTool) setSubTool(nextTool);
+        if (isToolMenuOpen) setIsToolMenuOpen(false);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [location.search]);
+
+    const handleCategoryChange = (catId: ToolCategoryId) => {
+        const nextTool = CALCULATORS[catId][0].id;
         setCategory(catId);
-        setSubTool(CALCULATORS[catId][0].id);
+        setSubTool(nextTool);
         setToolQuery('');
         setIsToolMenuOpen(false);
+        navigate(`/calculators?cat=${encodeURIComponent(catId)}&tool=${encodeURIComponent(nextTool)}`, { replace: true });
     };
 
     const tools = CALCULATORS[category];
 
     const ActiveCalculator = tools.find(c => c.id === subTool)?.component;
     const activeToolLabel = tools.find((t) => t.id === subTool)?.label || 'Select tool';
+
+    const favoriteTools = useMemo(() => {
+        const prefix = `${category}:`;
+        const byId = new Map(tools.map((t) => [t.id, t] as const));
+        return toolPrefs.favorites
+            .filter((k) => k.startsWith(prefix))
+            .map((k) => k.slice(prefix.length))
+            .filter((id) => byId.has(id))
+            .map((id) => byId.get(id)!);
+    }, [category, tools, toolPrefs.favorites]);
+
+    const recentTools = useMemo(() => {
+        const prefix = `${category}:`;
+        const byId = new Map(tools.map((t) => [t.id, t] as const));
+        const favoriteIds = new Set(favoriteTools.map((t) => t.id));
+        return toolPrefs.recents
+            .filter((k) => k.startsWith(prefix))
+            .map((k) => k.slice(prefix.length))
+            .filter((id) => byId.has(id) && !favoriteIds.has(id))
+            .map((id) => byId.get(id)!);
+    }, [category, tools, toolPrefs.recents, favoriteTools]);
+
+    const remainingTools = useMemo(() => {
+        const excluded = new Set([...favoriteTools.map((t) => t.id), ...recentTools.map((t) => t.id)]);
+        return tools.filter((t) => !excluded.has(t.id));
+    }, [tools, favoriteTools, recentTools]);
 
     const filteredTools = useMemo(() => {
         const q = toolQuery.trim().toLowerCase();
@@ -515,7 +582,7 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
                     {CALCULATOR_CATEGORIES.map(cat => (
                         <button
                             key={cat.id}
-                            onClick={() => handleCategoryChange(cat.id as any)}
+                            onClick={() => handleCategoryChange(cat.id as ToolCategoryId)}
                             className={`px-8 py-3 rounded-2xl text-sm font-black flex items-center gap-2 transition-all ${category === cat.id ? 'bg-slate-900 text-white shadow-xl' : 'bg-white border border-slate-100 text-slate-500 hover:border-indigo-400'
                                 }`}
                         >
@@ -561,22 +628,96 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
                                     className="w-full px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-bold text-slate-900 dark:text-white outline-none focus:border-indigo-500"
                                 />
                                 <div className="flex flex-col gap-2 max-h-[65vh] overflow-y-auto pr-1">
-                                    {filteredTools.map((tool) => (
-                                        <button
-                                            key={tool.id}
-                                            onClick={() => {
-                                                setSubTool(tool.id);
-                                                setIsToolMenuOpen(false);
-                                            }}
-                                            className={`text-left px-4 py-3 rounded-xl text-sm font-bold transition-colors ${
-                                                subTool === tool.id
-                                                    ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-200'
-                                                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'
-                                            }`}
-                                        >
-                                            {tool.label}
-                                        </button>
-                                    ))}
+                                    {(toolQuery.trim() ? filteredTools : [...favoriteTools, ...recentTools, ...remainingTools]).map((tool, idx) => {
+                                        const isFavorite = toolPrefs.favorites.includes(makeToolKey(category, tool.id));
+                                        const isSelected = subTool === tool.id;
+                                        const showFavoritesHeader = !toolQuery.trim() && idx === 0 && favoriteTools.length > 0;
+                                        const showRecentHeader =
+                                            !toolQuery.trim() && idx === favoriteTools.length && recentTools.length > 0;
+                                        const showAllHeader =
+                                            !toolQuery.trim() &&
+                                            idx === favoriteTools.length + recentTools.length &&
+                                            remainingTools.length > 0;
+
+                                        return (
+                                            <React.Fragment key={tool.id}>
+                                                {showFavoritesHeader && (
+                                                    <div className="flex items-center justify-between pt-1 pb-2">
+                                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                            Favorites
+                                                        </div>
+                                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                            {favoriteTools.length}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {showRecentHeader && (
+                                                    <div className="flex items-center justify-between pt-4 pb-2">
+                                                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                            Recent
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setToolPrefs(clearRecentTools())}
+                                                            className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-700"
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {showAllHeader && (
+                                                    <div className="pt-4 pb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                        All tools
+                                                    </div>
+                                                )}
+
+                                                <div
+                                                    className={`flex items-stretch rounded-xl border transition-colors ${
+                                                        isSelected
+                                                            ? 'bg-indigo-50 border-indigo-100 dark:bg-indigo-900/30 dark:border-indigo-900/40'
+                                                            : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                                                    }`}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSubTool(tool.id);
+                                                            setToolQuery('');
+                                                            setIsToolMenuOpen(false);
+                                                            navigate(
+                                                                `/calculators?cat=${encodeURIComponent(category)}&tool=${encodeURIComponent(
+                                                                    tool.id
+                                                                )}`,
+                                                                { replace: true }
+                                                            );
+                                                        }}
+                                                        className={`flex-1 text-left px-4 py-3 text-sm font-bold rounded-xl ${
+                                                            isSelected
+                                                                ? 'text-indigo-700 dark:text-indigo-200'
+                                                                : 'text-slate-600 dark:text-slate-300'
+                                                        }`}
+                                                    >
+                                                        {tool.label}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setToolPrefs(toggleFavoriteTool(makeToolKey(category, tool.id)))
+                                                        }
+                                                        className={`px-3 rounded-xl text-sm font-black transition-colors ${
+                                                            isFavorite
+                                                                ? 'text-amber-500 hover:text-amber-600'
+                                                                : 'text-slate-300 hover:text-slate-500 dark:text-slate-500 dark:hover:text-slate-300'
+                                                        }`}
+                                                        aria-label={isFavorite ? 'Unfavorite tool' : 'Favorite tool'}
+                                                        title={isFavorite ? 'Unfavorite' : 'Favorite'}
+                                                    >
+                                                        {isFavorite ? '★' : '☆'}
+                                                    </button>
+                                                </div>
+                                            </React.Fragment>
+                                        );
+                                    })}
                                     {filteredTools.length === 0 && (
                                         <div className="py-6 text-center text-sm font-bold text-slate-400">
                                             No tools match your search.
