@@ -88,7 +88,7 @@ Email service running on http://localhost:5000
    ```powershell
    npm run dev
    ```
-3. Open [http://localhost:5173](http://localhost:5173) in your browser
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
 4. Sign up with a real email address
 5. You should receive a verification email within seconds
 6. Check your spam/promotions folder if not in inbox
@@ -123,7 +123,7 @@ User Input (Sign Up/Sign In)
          ↓
   emailService.ts (Client wrapper)
          ↓
-  HTTP POST to localhost:5000
+  HTTP POST to /api (dev proxy â†’ localhost:5000)
          ↓
    backend/server.js (Express)
          ↓
@@ -158,7 +158,7 @@ For production:
 
 1. Use environment variables instead of `.env` file
 2. Deploy backend to a service (Heroku, Railway, Vercel, AWS)
-3. Update `emailService.ts` to point to production URL instead of `localhost:5000`
+3. In production, route frontend `/api/*` requests to your backend (same domain via reverse proxy), or update `services/emailService.ts` accordingly
 4. Consider using Firebase Cloud Functions instead of separate backend
 5. Set Gmail to allow "Less Secure Apps" or use OAuth2
 

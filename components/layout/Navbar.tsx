@@ -17,6 +17,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const normalizedRole = String(user?.role || '').toLowerCase();
 
   const moreMenuRef = useRef<HTMLDivElement | null>(null);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
@@ -46,18 +47,18 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     if (user) {
       items.push({ label: 'Dashboard', path: '/dashboard' });
       items.push({ label: 'Cases', path: '/cases' });
-      if (user.role === 'user') items.push({ label: 'Profile', path: '/profile' });
+      if (normalizedRole === 'user') items.push({ label: 'Profile', path: '/profile' });
       items.push({ label: 'My Records', path: '/records' });
       items.push({ label: 'Book Expert', path: '/services' });
     }
 
-    if (user?.role === 'admin') {
+    if (normalizedRole === 'admin') {
       items.push({ label: 'Admin Panel', path: '/admin' });
       items.push({ label: 'Users', path: '/admin/users' });
     }
 
     return items;
-  }, [user]);
+  }, [normalizedRole, user]);
 
   const primaryNavItems = useMemo(() => {
     if (!user) {
@@ -74,9 +75,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
       { label: 'Calculators', path: '/calculators' },
     ];
 
-    if (user.role === 'admin') items.push({ label: 'Admin', path: '/admin' });
+    if (normalizedRole === 'admin') items.push({ label: 'Admin', path: '/admin' });
     return items;
-  }, [user]);
+  }, [normalizedRole, user]);
 
   const moreNavItems = useMemo(() => {
     if (!user) return [];
@@ -89,12 +90,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const accountMenuItems = useMemo(() => {
     if (!user) return [];
     const items: { label: string; path: string }[] = [];
-    if (user.role === 'user') items.push({ label: 'Profile', path: '/profile' });
+    if (normalizedRole === 'user') items.push({ label: 'Profile', path: '/profile' });
     items.push({ label: 'My Records', path: '/records' });
     items.push({ label: 'Book Expert', path: '/services' });
-    if (user.role === 'admin') items.push({ label: 'Users', path: '/admin/users' });
+    if (normalizedRole === 'admin') items.push({ label: 'Users', path: '/admin/users' });
     return items;
-  }, [user]);
+  }, [normalizedRole, user]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -328,7 +329,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   </div>
                   <div className="hidden lg:flex flex-col items-start leading-tight">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">
-                      {user.role === 'admin' ? 'Admin' : user.role === 'employee' ? 'Employee' : 'Client'}
+                      {normalizedRole === 'admin' ? 'Admin' : normalizedRole === 'employee' ? 'Employee' : 'Client'}
                     </span>
                     <span className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[160px]">
                       {user.name}

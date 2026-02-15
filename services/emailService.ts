@@ -1,4 +1,5 @@
-const EMAIL_SERVICE_URL = 'http://localhost:5000/api';
+// Use relative path so it works behind a reverse proxy in production and via Vite dev proxy.
+const EMAIL_SERVICE_URL = '/api';
 
 export const sendVerificationCode = async (email: string, code: string): Promise<boolean> => {
   try {
@@ -18,7 +19,8 @@ export const sendVerificationCode = async (email: string, code: string): Promise
 
     return true;
   } catch (error) {
-    console.error('Failed to send verification code:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Failed to send verification code:', message);
     return false;
   }
 };
@@ -28,7 +30,8 @@ export const checkEmailServiceHealth = async (): Promise<boolean> => {
     const response = await fetch(`${EMAIL_SERVICE_URL}/health`);
     return response.ok;
   } catch (error) {
-    console.error('Email service not running:', error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Email service not running:', message);
     return false;
   }
 };

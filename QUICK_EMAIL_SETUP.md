@@ -28,13 +28,14 @@ Should show: `Email service running on http://localhost:5000`
 ## 5. Test It
 1. Keep backend terminal open
 2. Start frontend: `npm run dev`
-3. Open http://localhost:5173
+3. Open http://localhost:3000
 4. Sign up with real email
 5. Check inbox for verification code
 
 ## What Changed?
 - `Router.tsx`: Now calls `sendVerificationCode()` when generating codes
-- `services/emailService.ts`: Sends email requests to backend
+- `services/emailService.ts`: Sends email requests to backend via `/api/*` (Vite proxies this to `localhost:5000` in dev)
+- `vite.config.ts`: Dev proxy for `/api/*` â†’ `http://127.0.0.1:5000`
 - `backend/server.js`: Receives requests and sends emails via Gmail
 - `backend/.env`: Stores your Gmail credentials
 
@@ -44,6 +45,7 @@ Should show: `Email service running on http://localhost:5000`
 3. Check browser console (F12) for errors
 4. Check spam/promotions folder
 5. Verify Gmail App Password is correct (not regular password)
+6. If you see `Failed to fetch`, the backend server is not reachable (or not running)
 
 ## Architecture
 ```

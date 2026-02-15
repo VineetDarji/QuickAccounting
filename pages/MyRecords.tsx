@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { User, SavedCalculation } from '../types';
 import { exportToPDF, exportToExcel } from '../services/exportService';
+import toastConfig from '../services/toastService';
+import { scheduleLocalDataSync } from '../services/dataSyncService';
 
 interface MyRecordsProps {
   user: User | null;
@@ -27,6 +29,7 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
     setRecords(updated);
     const all = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
     localStorage.setItem('tax_saved_calcs', JSON.stringify(all.filter((r: any) => r.id !== id)));
+    scheduleLocalDataSync();
   };
 
   const toggleSelect = (id: string) => {
@@ -34,6 +37,26 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
       prev.includes(id) ? prev.filter(i => i !== id) : prev.length < 2 ? [...prev, id] : [prev[1], id]
     );
   };
+
+  const handleExportPDF = (record: SavedCalculation) =>
+    toastConfig.promise(
+      exportToPDF(record),
+      {
+        loading: 'Preparing PDF report…',
+        success: 'PDF report downloaded',
+        error: 'PDF export failed',
+      }
+    );
+
+  const handleExportExcel = (record: SavedCalculation) =>
+    toastConfig.promise(
+      exportToExcel(record),
+      {
+        loading: 'Preparing Excel report…',
+        success: 'Excel report downloaded',
+        error: 'Excel export failed',
+      }
+    );
 
   const compareRecords = () => {
     if (selected.length !== 2) return null;
@@ -122,8 +145,8 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
               </div>
 
               <div className="flex items-center gap-3">
-                <button onClick={() => exportToPDF(record)} className="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors" title="Export PDF">PDF</button>
-                <button onClick={async () => await exportToExcel(record)} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs hover:bg-green-100 transition-colors" title="Export Excel">Excel</button>
+                <button onClick={() => handleExportPDF(record)} className="p-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs hover:bg-red-100 transition-colors" title="Export PDF">PDF</button>
+                <button onClick={() => handleExportExcel(record)} className="p-3 bg-green-50 text-green-600 rounded-xl font-bold text-xs hover:bg-green-100 transition-colors" title="Export Excel">Excel</button>
                 <button onClick={() => handleDelete(record.id)} className="p-3 bg-slate-50 text-slate-400 rounded-xl font-bold text-xs hover:bg-slate-200 transition-colors" title="Delete">🗑️</button>
               </div>
             </div>

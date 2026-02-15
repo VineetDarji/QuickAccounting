@@ -9,10 +9,10 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ user }) => {
   if (!user) return <Navigate to="/login" />;
 
-  if (user.role === 'admin') return <Navigate to="/dashboard/admin" />;
-  if (user.role === 'employee') return <Navigate to="/dashboard/employee" />;
+  const role = String(user.role || '').toLowerCase();
+  if (role === 'admin') return <Navigate to="/dashboard/admin" />;
+  if (role === 'employee') return <Navigate to="/dashboard/employee" />;
   return <Navigate to="/dashboard/client" />;
 };
 
 export default Dashboard;
-

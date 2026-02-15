@@ -28,7 +28,7 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ user }) => {
   const [query, setQuery] = useState('');
 
   if (!user) return <Navigate to="/login" />;
-  if (user.role !== 'admin') return <Navigate to="/dashboard" />;
+  if (String(user.role || '').toLowerCase() !== 'admin') return <Navigate to="/dashboard" />;
 
   const users = useMemo(() => {
     const all = loadJson<StoredUser[]>(USERS_KEY, []);
@@ -135,4 +135,3 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ user }) => {
 };
 
 export default AdminUsers;
-

@@ -8,6 +8,13 @@ export default defineConfig(({ mode }) => {
       server: {
         port: 3000,
         host: '0.0.0.0',
+        proxy: {
+          // Forward frontend /api/* calls to the local backend during development.
+          '/api': {
+            target: 'http://127.0.0.1:5000',
+            changeOrigin: true,
+          },
+        },
       },
       plugins: [react()],
       define: {

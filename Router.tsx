@@ -1,4 +1,4 @@
-import React, { useMemo, useState, Suspense, lazy } from 'react';
+import React, { useMemo, useState, useEffect, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, Inquiry, SavedCalculation } from './types';
 import { useUserStore } from './store/userStore';
@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { sendVerificationCode } from './services/emailService';
 import { CALCULATOR_CATEGORIES, CALCULATORS } from './config/calculators';
 import { logActivity } from './services/activityService';
+import { scheduleLocalDataSync } from './services/dataSyncService';
 import {
     clearRecentTools,
     getToolPreferences,
@@ -32,16 +33,27 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 
 const Login: React.FC = () => {
     const [isSignUp, setIsSignUp] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [newConfirmPassword, setNewConfirmPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
-    const [step, setStep] = useState<'credentials' | 'verification'>('credentials');
+    const [step, setStep] = useState<'credentials' | 'verification' | 'reset_password'>('credentials');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [generatedCode, setGeneratedCode] = useState('');
+    const [showDemoCode, setShowDemoCode] = useState(false);
     const login = useUserStore((state) => state.login);
+    const canUseDemoCode =
+        typeof window !== 'undefined' &&
+        ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+    const testAccounts = [
+        { email: 'admin@test.local', password: 'Test@123', name: 'Admin', role: 'admin' },
+        { email: 'employee@test.local', password: 'Test@123', name: 'Employee', role: 'employee' },
+    ] as const;
 
     // Email validation
     const isValidEmail = (email: string) => {
@@ -64,6 +76,7 @@ const Login: React.FC = () => {
         const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
         users.push(userData);
         localStorage.setItem('quickaccounting_users', JSON.stringify(users));
+        scheduleLocalDataSync();
     };
 
     // Find user for login
@@ -71,6 +84,168 @@ const Login: React.FC = () => {
         const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
         return users.find((user: any) => user.email === email && user.password === password);
     };
+
+    const updateUserPassword = (email: string, nextPassword: string) => {
+        const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
+        const idx = users.findIndex((user: any) => user.email === email);
+        if (idx < 0) return false;
+        users[idx] = { ...users[idx], password: nextPassword, updatedAt: Date.now() };
+        localStorage.setItem('quickaccounting_users', JSON.stringify(users));
+        scheduleLocalDataSync();
+        return true;
+    };
+
+    useEffect(() => {
+        if (!canUseDemoCode) return;
+        const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
+        const next = [...users];
+        let changed = false;
+        testAccounts.forEach((account) => {
+            const idx = next.findIndex((u: any) => u?.email === account.email);
+            if (idx >= 0) {
+                const existing = next[idx];
+                const normalized = {
+                    ...existing,
+                    name: account.name,
+                    email: account.email,
+                    password: account.password,
+                    role: account.role,
+                    updatedAt: Date.now(),
+                };
+                if (
+                    existing.name !== normalized.name ||
+                    existing.password !== normalized.password ||
+                    existing.role !== normalized.role
+                ) {
+                    next[idx] = normalized;
+                    changed = true;
+                }
+            } else {
+                next.push({
+                    ...account,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                });
+                changed = true;
+            }
+        });
+        if (changed) {
+            localStorage.setItem('quickaccounting_users', JSON.stringify(next));
+            scheduleLocalDataSync();
+        }
+    }, [canUseDemoCode]);
+
+    const startResetFlow = () => {
+        setIsResetting(true);
+        setIsSignUp(false);
+        setStep('credentials');
+        setError('');
+        setShowDemoCode(false);
+        setPassword('');
+        setConfirmPassword('');
+        setNewPassword('');
+        setNewConfirmPassword('');
+        setVerificationCode('');
+        setGeneratedCode('');
+    };
+
+    const cancelResetFlow = () => {
+        setIsResetting(false);
+        setStep('credentials');
+        setError('');
+        setShowDemoCode(false);
+        setNewPassword('');
+        setNewConfirmPassword('');
+        setVerificationCode('');
+        setGeneratedCode('');
+    };
+
+    const handleResetRequestSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        if (!isValidEmail(email)) {
+            setError('Please enter a valid email address');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!emailExists(email)) {
+            setError('No account found with this email. Please sign up first.');
+            setIsLoading(false);
+            return;
+        }
+
+        // Generate reset verification code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        setGeneratedCode(code);
+
+        sendVerificationCode(email, code).then((success) => {
+            setTimeout(() => {
+                if (success) {
+                    setShowDemoCode(false);
+                    toast.success(`Reset code sent to ${email}`);
+                    setStep('verification');
+                } else if (canUseDemoCode) {
+                    setShowDemoCode(true);
+                    toast.error('Email service unavailable. Using demo code (local only).');
+                    toast(`Demo code: ${code}`);
+                    setStep('verification');
+                } else {
+                    setShowDemoCode(false);
+                    toast.error('Email service unavailable. Please try again later.');
+                    setStep('credentials');
+                }
+                setIsLoading(false);
+            }, 1000);
+        });
+    };
+
+    const handleResetPasswordSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+
+        if (!isValidPassword(newPassword)) {
+            setError('Password must be at least 6 characters');
+            setIsLoading(false);
+            return;
+        }
+
+        if (newPassword !== newConfirmPassword) {
+            setError('Passwords do not match');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!emailExists(email)) {
+            setError('No account found with this email. Please sign up first.');
+            setIsLoading(false);
+            return;
+        }
+
+        setTimeout(() => {
+            const updated = updateUserPassword(email, newPassword);
+            if (!updated) {
+                setError('Could not update password. Please try again.');
+                setIsLoading(false);
+                return;
+            }
+
+            toast.success('Password updated. Please sign in.');
+            setPassword('');
+            setConfirmPassword('');
+            setNewPassword('');
+            setNewConfirmPassword('');
+             setVerificationCode('');
+             setGeneratedCode('');
+             setIsResetting(false);
+             setShowDemoCode(false);
+             setStep('credentials');
+             setIsLoading(false);
+         }, 800);
+     };
 
     const handleSignUpSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -116,11 +291,19 @@ const Login: React.FC = () => {
         sendVerificationCode(email, code).then((success) => {
             setTimeout(() => {
                 if (success) {
+                    setShowDemoCode(false);
                     toast.success(`Verification code sent to ${email}`);
+                    setStep('verification');
+                } else if (canUseDemoCode) {
+                    setShowDemoCode(true);
+                    toast.error('Email service unavailable. Using demo code (local only).');
+                    toast(`Demo code: ${code}`);
+                    setStep('verification');
                 } else {
+                    setShowDemoCode(false);
                     toast.error('Email service unavailable. Please try again later.');
+                    setStep('credentials');
                 }
-                setStep('verification');
                 setIsLoading(false);
             }, 1000);
         });
@@ -151,6 +334,16 @@ const Login: React.FC = () => {
             return;
         }
 
+        const isTestAccount =
+            canUseDemoCode &&
+            testAccounts.some((account) => account.email === user.email && account.password === password);
+        if (isTestAccount) {
+            login({ email: user.email, name: user.name, role: user.role });
+            toast.success('Login successful (test account).');
+            setIsLoading(false);
+            return;
+        }
+
         // Generate verification code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
@@ -159,11 +352,19 @@ const Login: React.FC = () => {
         sendVerificationCode(email, code).then((success) => {
             setTimeout(() => {
                 if (success) {
+                    setShowDemoCode(false);
                     toast.success(`Verification code sent to ${email}`);
+                    setStep('verification');
+                } else if (canUseDemoCode) {
+                    setShowDemoCode(true);
+                    toast.error('Email service unavailable. Using demo code (local only).');
+                    toast(`Demo code: ${code}`);
+                    setStep('verification');
                 } else {
+                    setShowDemoCode(false);
                     toast.error('Email service unavailable. Please try again later.');
+                    setStep('credentials');
                 }
-                setStep('verification');
                 setIsLoading(false);
             }, 1000);
         });
@@ -180,7 +381,16 @@ const Login: React.FC = () => {
             return;
         }
 
+        setShowDemoCode(false);
+
         setTimeout(() => {
+            if (isResetting) {
+                setVerificationCode('');
+                setStep('reset_password');
+                setIsLoading(false);
+                return;
+            }
+
             if (isSignUp) {
                 // Register new user
                 const newUser = {
@@ -214,16 +424,37 @@ const Login: React.FC = () => {
         <div className="min-h-[70vh] flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
             <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100 dark:border-slate-700">
                 <h2 className="text-3xl font-bold text-slate-800 dark:text-white mb-2">
-                    {step === 'credentials' ? (isSignUp ? 'Create Account' : 'Welcome Back') : 'Verify Your Identity'}
+                    {step === 'credentials'
+                        ? isResetting
+                            ? 'Reset Password'
+                            : isSignUp
+                                ? 'Create Account'
+                                : 'Welcome Back'
+                        : step === 'verification'
+                            ? isResetting
+                                ? 'Verify Reset Code'
+                                : 'Verify Your Identity'
+                            : 'Set New Password'}
                 </h2>
                 <p className="text-slate-500 dark:text-slate-400 mb-8">
-                    {step === 'credentials' 
-                        ? (isSignUp ? 'Join Quick Accounting Service today' : 'Sign in to manage your profile')
-                        : 'Enter the verification code sent to your email'}
+                    {step === 'credentials'
+                        ? isResetting
+                            ? 'We’ll email you a 6-digit code to reset your password'
+                            : isSignUp
+                                ? 'Join Quick Accounting Service today'
+                                : 'Sign in to manage your profile'
+                        : step === 'verification'
+                            ? isResetting
+                                ? 'Enter the reset code sent to your email'
+                                : 'Enter the verification code sent to your email'
+                            : 'Choose a new password for your account'}
                 </p>
 
                 {step === 'credentials' ? (
-                    <form onSubmit={isSignUp ? handleSignUpSubmit : handleSignInSubmit} className="space-y-6">
+                    <form
+                        onSubmit={isResetting ? handleResetRequestSubmit : isSignUp ? handleSignUpSubmit : handleSignInSubmit}
+                        className="space-y-6"
+                    >
                         {isSignUp && (
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
@@ -256,23 +487,35 @@ const Login: React.FC = () => {
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Password</label>
-                            <input
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => {
-                                    setPassword(e.target.value);
-                                    setError('');
-                                }}
-                                className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
-                                placeholder="••••••••"
-                            />
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Minimum 6 characters</p>
-                        </div>
+                        {!isResetting && (
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        setError('');
+                                    }}
+                                    className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                    placeholder="••••••••"
+                                />
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Minimum 6 characters</p>
+                            </div>
+                        )}
 
-                        {isSignUp && (
+                        {!isSignUp && !isResetting && (
+                            <button
+                                type="button"
+                                onClick={startResetFlow}
+                                className="w-full text-right text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                            >
+                                Forgot password?
+                            </button>
+                        )}
+
+                        {isSignUp && !isResetting && (
                             <div>
                                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm Password</label>
                                 <input
@@ -300,38 +543,85 @@ const Login: React.FC = () => {
                             disabled={isLoading}
                             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:shadow-lg hover:shadow-indigo-300 dark:hover:shadow-indigo-900 transition-all shadow-md disabled:opacity-50"
                         >
-                            {isLoading ? 'Verifying...' : isSignUp ? 'Create Account' : 'Sign In'}
+                            {isLoading ? 'Verifying...' : isResetting ? 'Send Reset Code' : isSignUp ? 'Create Account' : 'Sign In'}
                         </button>
 
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-slate-300 dark:border-slate-600"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">or</span>
-                            </div>
-                        </div>
+                        {isResetting ? (
+                            <button
+                                type="button"
+                                onClick={cancelResetFlow}
+                                className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                            >
+                                ← Back to Sign In
+                            </button>
+                        ) : (
+                            <>
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-slate-300 dark:border-slate-600"></div>
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="px-2 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400">or</span>
+                                    </div>
+                                </div>
 
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setIsSignUp(!isSignUp);
-                                setError('');
-                                setEmail('');
-                                setPassword('');
-                                setConfirmPassword('');
-                                setFullName('');
-                            }}
-                            className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
-                        >
-                            {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-                        </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        cancelResetFlow();
+                                        setIsSignUp(!isSignUp);
+                                        setError('');
+                                        setEmail('');
+                                        setPassword('');
+                                        setConfirmPassword('');
+                                        setFullName('');
+                                    }}
+                                    className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                                >
+                                    {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+                                </button>
+                            </>
+                        )}
                     </form>
-                ) : (
+                ) : step === 'verification' ? (
                     <form onSubmit={handleVerificationSubmit} className="space-y-6">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Verification Code</label>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">A 6-digit code has been sent to <span className="font-bold text-slate-700 dark:text-slate-300">{email}</span></p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+                                {showDemoCode ? (
+                                    <>Email service is offline. Use the demo code below (local testing).</>
+                                ) : (
+                                    <>
+                                        A 6-digit {isResetting ? 'reset ' : ''}code has been sent to{' '}
+                                        <span className="font-bold text-slate-700 dark:text-slate-300">{email}</span>
+                                    </>
+                                )}
+                            </p>
+                            {showDemoCode && (
+                                <div className="p-3 mb-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">
+                                            Demo code:{' '}
+                                            <span className="font-bold tracking-widest text-amber-900 dark:text-amber-100">
+                                                {generatedCode}
+                                            </span>
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setVerificationCode(generatedCode);
+                                                setError('');
+                                            }}
+                                            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                                        >
+                                            Use code
+                                        </button>
+                                    </div>
+                                    <p className="text-[11px] text-amber-800/80 dark:text-amber-200/80 mt-1">
+                                        Start the backend email service to send real emails.
+                                    </p>
+                                </div>
+                            )}
                             <input
                                 type="text"
                                 required
@@ -357,7 +647,7 @@ const Login: React.FC = () => {
                             disabled={isLoading || verificationCode.length !== 6}
                             className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:shadow-lg hover:shadow-indigo-300 dark:hover:shadow-indigo-900 transition-all shadow-md disabled:opacity-50"
                         >
-                            {isLoading ? 'Verifying...' : isSignUp ? 'Create Account' : 'Sign In'}
+                            {isLoading ? 'Verifying...' : isResetting ? 'Continue' : isSignUp ? 'Create Account' : 'Sign In'}
                         </button>
 
                         <button
@@ -366,10 +656,82 @@ const Login: React.FC = () => {
                                 setStep('credentials');
                                 setVerificationCode('');
                                 setError('');
+                                setShowDemoCode(false);
                             }}
                             className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
                         >
                             ← Back
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleResetPasswordSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Email Address
+                            </label>
+                            <input
+                                type="email"
+                                value={email}
+                                disabled
+                                className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/60 text-slate-900 dark:text-white rounded-lg opacity-75 cursor-not-allowed"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                New Password
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={newPassword}
+                                onChange={(e) => {
+                                    setNewPassword(e.target.value);
+                                    setError('');
+                                }}
+                                className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                placeholder="••••••••"
+                            />
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Minimum 6 characters</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                Confirm New Password
+                            </label>
+                            <input
+                                type="password"
+                                required
+                                value={newConfirmPassword}
+                                onChange={(e) => {
+                                    setNewConfirmPassword(e.target.value);
+                                    setError('');
+                                }}
+                                className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                placeholder="••••••••"
+                            />
+                        </div>
+
+                        {error && (
+                            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                                <p className="text-sm font-semibold text-red-600 dark:text-red-400">❌ {error}</p>
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-bold hover:shadow-lg hover:shadow-indigo-300 dark:hover:shadow-indigo-900 transition-all shadow-md disabled:opacity-50"
+                        >
+                            {isLoading ? 'Updating...' : 'Update Password'}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={cancelResetFlow}
+                            className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+                        >
+                            ← Back to Sign In
                         </button>
                     </form>
                 )}
@@ -393,6 +755,7 @@ const InquiryPage: React.FC<{ user: User | null }> = ({ user }) => {
         };
         const existing = JSON.parse(localStorage.getItem('tax_inquiries') || '[]');
         localStorage.setItem('tax_inquiries', JSON.stringify([...existing, newInquiry]));
+        scheduleLocalDataSync();
         setSubmitted(true);
     };
 
@@ -500,6 +863,7 @@ const CalculatorHub: React.FC<{ user: User | null }> = ({ user }) => {
         const existing = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]');
         const enriched = user ? { ...calc, userEmail: user.email } : calc;
         localStorage.setItem('tax_saved_calcs', JSON.stringify([...existing, enriched]));
+        scheduleLocalDataSync();
         toast.success('Calculation saved successfully to your records!');
         if (user) logActivity(user, 'SAVE_CALCULATION', `${enriched.type}: ${enriched.label}`);
     };
@@ -745,6 +1109,10 @@ interface AppRouterProps {
 }
 
 const AppRouter: React.FC<AppRouterProps> = ({ user }) => {
+    React.useEffect(() => {
+        scheduleLocalDataSync(200);
+    }, []);
+
     return (
         <Suspense fallback={<div>Loading...</div>}>
             <Routes>
@@ -763,9 +1131,19 @@ const AppRouter: React.FC<AppRouterProps> = ({ user }) => {
                 <Route path="/cases" element={<Cases user={user} />} />
                 <Route path="/cases/:caseId" element={<CaseDetails user={user} />} />
                 <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
-                <Route path="/admin" element={user?.role === 'admin' ? <AdminDashboardMaster user={user} /> : <Navigate to="/login" />} />
-                <Route path="/admin/users" element={user?.role === 'admin' ? <AdminUsers user={user} /> : <Navigate to="/login" />} />
-                <Route path="/admin/legacy" element={user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />} />
+                <Route
+                    path="/admin"
+                    element={String(user?.role || '').toLowerCase() === 'admin' ? <AdminDashboardMaster user={user} /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/admin/users"
+                    element={String(user?.role || '').toLowerCase() === 'admin' ? <AdminUsers user={user} /> : <Navigate to="/login" />}
+                />
+                <Route
+                    path="/admin/legacy"
+                    element={String(user?.role || '').toLowerCase() === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />}
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </Suspense>
     );

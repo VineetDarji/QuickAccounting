@@ -17,7 +17,11 @@ const App: React.FC = () => {
   useEffect(() => {
     const saved = localStorage.getItem('tax_user');
     if (saved) {
-      login(JSON.parse(saved));
+      try {
+        login(JSON.parse(saved));
+      } catch {
+        localStorage.removeItem('tax_user');
+      }
     }
   }, [login]);
 
