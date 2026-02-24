@@ -9,12 +9,14 @@ import { useUserStore } from './store/userStore';
 import { useThemeStore } from './store/themeStore';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
+import { backfillStoredUsersIdentity } from './services/userNameService';
 
 const App: React.FC = () => {
   const { user, login, logout } = useUserStore();
   const { isDark, setTheme } = useThemeStore();
 
   useEffect(() => {
+    backfillStoredUsersIdentity();
     const saved = localStorage.getItem('tax_user');
     if (saved) {
       try {

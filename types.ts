@@ -168,6 +168,9 @@ export interface User {
   email: string;
   role: 'user' | 'client_pending' | 'client' | 'employee' | 'admin';
   name: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
 }
 
 export interface ClientAccessRequest {

@@ -17,6 +17,9 @@ interface AdminUsersProps {
 
 type StoredUser = {
   name?: string;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   email?: string;
   role?: 'user' | 'client_pending' | 'client' | 'employee' | 'admin';
   password?: string;
@@ -43,7 +46,17 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ user }) => {
       .filter((u) => u && (u.email || u.name))
       .filter((u) => {
         if (!q) return true;
-        return String(u.email || '').toLowerCase().includes(q) || String(u.name || '').toLowerCase().includes(q);
+        const full = String(u.name || '').toLowerCase();
+        const first = String(u.firstName || '').toLowerCase();
+        const middle = String(u.middleName || '').toLowerCase();
+        const last = String(u.lastName || '').toLowerCase();
+        return (
+          String(u.email || '').toLowerCase().includes(q) ||
+          full.includes(q) ||
+          first.includes(q) ||
+          middle.includes(q) ||
+          last.includes(q)
+        );
       })
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   }, [query, refreshTick]);
@@ -183,7 +196,12 @@ const AdminUsers: React.FC<AdminUsersProps> = ({ user }) => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {users.map((u) => (
                 <tr key={String(u.email)} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">{u.name || '-'}</td>
+                  <td className="px-6 py-4">
+                    <p className="font-bold text-slate-900 dark:text-white">{u.name || '-'}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-300">
+                      {`${u.firstName || '-'} ${u.middleName || ''} ${u.lastName || '-'}`.replace(/\s+/g, ' ').trim()}
+                    </p>
+                  </td>
                   <td className="px-6 py-4 text-xs font-mono text-slate-600 dark:text-slate-200">{u.email || '-'}</td>
                   <td className="px-6 py-4">
                     <select

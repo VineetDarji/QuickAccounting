@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types';
+import { normalizeUserIdentity } from '../services/userNameService';
 
 interface UserState {
   user: User | null;
@@ -19,10 +20,10 @@ const normalizeRole = (role: string): User['role'] => {
 export const useUserStore = create<UserState>((set) => ({
   user: null,
   login: (user) => {
-    const normalized: User = {
+    const normalized = normalizeUserIdentity({
       ...user,
       role: normalizeRole((user as any)?.role),
-    };
+    }) as User;
     set({ user: normalized });
     localStorage.setItem('tax_user', JSON.stringify(normalized));
   },

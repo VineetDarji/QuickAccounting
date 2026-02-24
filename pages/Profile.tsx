@@ -9,12 +9,15 @@ import { getProfile, upsertProfile } from '../services/profileService';
 import { logActivity } from '../services/activityService';
 import { deleteDocument, getDocument, putDocument } from '../services/documentsDb';
 import { generateId } from '../services/storageService';
+import { updateStoredUserIdentity } from '../services/userNameService';
+import { useUserStore } from '../store/userStore';
 
 interface ProfileProps {
   user: User | null;
 }
 
 const Profile: React.FC<ProfileProps> = ({ user }) => {
+  const login = useUserStore((state) => state.login);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [nameParts, setNameParts] = useState({ firstName: '', middleName: '', lastName: '' });
   const [isSaving, setIsSaving] = useState(false);
@@ -68,6 +71,19 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
         .join(' ');
       const saved = upsertProfile({ ...profile, name: fullName });
       setProfile(saved);
+      updateStoredUserIdentity({
+        email: saved.email,
+        firstName: nameParts.firstName,
+        middleName: nameParts.middleName,
+        lastName: nameParts.lastName,
+      });
+      login({
+        ...user,
+        name: fullName,
+        firstName: nameParts.firstName.trim(),
+        middleName: nameParts.middleName.trim(),
+        lastName: nameParts.lastName.trim(),
+      });
       toast.success('Profile saved');
       logActivity(user, 'UPDATE_PROFILE', 'Updated profile and notification preferences');
     } catch (e) {

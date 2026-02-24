@@ -4,6 +4,7 @@ import { User, Inquiry, SavedCalculation } from './types';
 import { useUserStore } from './store/userStore';
 import toast from 'react-hot-toast';
 import { sendVerificationCode } from './services/emailService';
+import { loginWithPassword, signup } from './services/authService';
 import { CALCULATOR_CATEGORIES, CALCULATORS } from './config/calculators';
 import { logActivity } from './services/activityService';
 import { scheduleLocalDataSync } from './services/dataSyncService';
@@ -53,8 +54,8 @@ const Login: React.FC = () => {
         typeof window !== 'undefined' &&
         ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
     const testAccounts = [
-        { email: 'admin@test.local', password: 'Test@123', name: 'Admin', role: 'admin' },
-        { email: 'employee@test.local', password: 'Test@123', name: 'Employee', role: 'employee' },
+        { email: 'admin@test.local', password: 'Test@123', name: 'Admin User', firstName: 'Admin', middleName: '', lastName: 'User', role: 'admin' },
+        { email: 'employee@test.local', password: 'Test@123', name: 'Employee User', firstName: 'Employee', middleName: '', lastName: 'User', role: 'employee' },
     ] as const;
 
     // Email validation
@@ -79,18 +80,13 @@ const Login: React.FC = () => {
         return users.some((user: any) => user.email === email);
     };
 
-    // Save new user
-    const saveNewUser = (userData: any) => {
+    const upsertLocalUser = (userData: any) => {
         const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
-        users.push(userData);
+        const idx = users.findIndex((u: any) => String(u?.email || '').toLowerCase() === String(userData?.email || '').toLowerCase());
+        if (idx >= 0) users[idx] = { ...users[idx], ...userData, updatedAt: Date.now() };
+        else users.push({ ...userData, createdAt: Date.now(), updatedAt: Date.now() });
         localStorage.setItem('quickaccounting_users', JSON.stringify(users));
         scheduleLocalDataSync();
-    };
-
-    // Find user for login
-    const findUser = (email: string, password: string) => {
-        const users = JSON.parse(localStorage.getItem('quickaccounting_users') || '[]');
-        return users.find((user: any) => user.email === email && user.password === password);
     };
 
     const updateUserPassword = (email: string, nextPassword: string) => {
@@ -115,6 +111,9 @@ const Login: React.FC = () => {
                 const normalized = {
                     ...existing,
                     name: account.name,
+                    firstName: account.firstName,
+                    middleName: account.middleName,
+                    lastName: account.lastName,
                     email: account.email,
                     password: account.password,
                     role: account.role,
@@ -122,6 +121,9 @@ const Login: React.FC = () => {
                 };
                 if (
                     existing.name !== normalized.name ||
+                    existing.firstName !== normalized.firstName ||
+                    existing.middleName !== normalized.middleName ||
+                    existing.lastName !== normalized.lastName ||
                     existing.password !== normalized.password ||
                     existing.role !== normalized.role
                 ) {
@@ -340,24 +342,6 @@ const Login: React.FC = () => {
             return;
         }
 
-        // Check if user exists with correct credentials
-        const user = findUser(email, password);
-        if (!user) {
-            setError('Invalid email or password. Please try again.');
-            setIsLoading(false);
-            return;
-        }
-
-        const isTestAccount =
-            canUseDemoCode &&
-            testAccounts.some((account) => account.email === user.email && account.password === password);
-        if (isTestAccount) {
-            login({ email: user.email, name: user.name, role: user.role });
-            toast.success('Login successful (test account).');
-            setIsLoading(false);
-            return;
-        }
-
         // Generate verification code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         setGeneratedCode(code);
@@ -397,7 +381,7 @@ const Login: React.FC = () => {
 
         setShowDemoCode(false);
 
-        setTimeout(() => {
+        setTimeout(async () => {
             if (isResetting) {
                 setVerificationCode('');
                 setStep('reset_password');
@@ -406,25 +390,46 @@ const Login: React.FC = () => {
             }
 
             if (isSignUp) {
-                // Register new user
-                const fullName = buildFullName();
-                const newUser = {
-                    email,
-                    password,
-                    name: fullName,
-                    role: 'user',
-                    createdAt: Date.now()
-                };
-                saveNewUser(newUser);
-                login({ email, name: fullName, role: 'user' });
-                toast.success('Account created successfully!');
+                try {
+                    const auth = await signup({
+                        email,
+                        password,
+                        firstName: firstName.trim(),
+                        middleName: middleName.trim(),
+                        lastName: lastName.trim(),
+                    });
+                    localStorage.setItem('tax_auth_token', auth.token);
+                    upsertLocalUser({
+                        email: auth.user.email,
+                        name: auth.user.name,
+                        firstName: auth.user.firstName || firstName.trim(),
+                        middleName: auth.user.middleName || middleName.trim(),
+                        lastName: auth.user.lastName || lastName.trim(),
+                        role: auth.user.role,
+                    });
+                    login(auth.user);
+                    toast.success('Account created successfully!');
+                } catch {
+                    setError('Could not create account from server. Please try again.');
+                    setStep('credentials');
+                    setIsLoading(false);
+                    return;
+                }
             } else {
-                // Sign in existing user
-                const user = findUser(email, password);
-                if (user) {
-                    login({ email, name: user.name, role: user.role });
+                try {
+                    const auth = await loginWithPassword({ email, password });
+                    localStorage.setItem('tax_auth_token', auth.token);
+                    upsertLocalUser({
+                        email: auth.user.email,
+                        name: auth.user.name,
+                        firstName: auth.user.firstName || '',
+                        middleName: auth.user.middleName || '',
+                        lastName: auth.user.lastName || '',
+                        role: auth.user.role,
+                    });
+                    login(auth.user);
                     toast.success('Login successful!');
-                } else {
+                } catch {
                     setError('Invalid email or password. Please try again.');
                     setStep('credentials');
                     setIsLoading(false);

@@ -17,11 +17,7 @@ const MyRecords: React.FC<MyRecordsProps> = ({ user }) => {
   const isOwnedByUser = (calc: SavedCalculation, currentUser: User) => {
     const recordEmail = String(calc.userEmail || '').trim().toLowerCase();
     const currentEmail = String(currentUser.email || '').trim().toLowerCase();
-    if (recordEmail) return recordEmail === currentEmail;
-
-    const recordName = String(calc.userName || '').trim().toLowerCase();
-    const currentName = String(currentUser.name || '').trim().toLowerCase();
-    return !String(calc.userEmail || '').trim() && recordName && recordName === currentName;
+    return Boolean(recordEmail) && recordEmail === currentEmail;
   };
 
   const getUserRecords = (currentUser: User) => {

@@ -65,11 +65,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user }) => {
         if (!c) return false;
         const recordEmail = String(c.userEmail || '').trim().toLowerCase();
         const currentEmail = String(user.email || '').trim().toLowerCase();
-        if (recordEmail) return recordEmail === currentEmail;
-        return String(c.userName || '').trim().toLowerCase() === String(user.name || '').trim().toLowerCase();
+        return Boolean(recordEmail) && recordEmail === currentEmail;
       })
       .sort((a, b) => b.timestamp - a.timestamp);
-  }, [user.email, user.name]);
+  }, [user.email]);
 
   const myInquiries = useMemo(() => {
     const all = JSON.parse(localStorage.getItem('tax_inquiries') || '[]') as Inquiry[];
