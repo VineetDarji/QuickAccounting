@@ -47,7 +47,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
     if (user) {
       items.push({ label: 'Dashboard', path: '/dashboard' });
       items.push({ label: 'Cases', path: '/cases' });
-      if (normalizedRole === 'user') items.push({ label: 'Profile', path: '/profile' });
+      if (normalizedRole === 'user' || normalizedRole === 'client' || normalizedRole === 'client_pending') {
+        items.push({ label: 'Profile', path: '/profile' });
+      }
       items.push({ label: 'My Records', path: '/records' });
       items.push({ label: 'Book Expert', path: '/services' });
     }
@@ -90,12 +92,22 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
   const accountMenuItems = useMemo(() => {
     if (!user) return [];
     const items: { label: string; path: string }[] = [];
-    if (normalizedRole === 'user') items.push({ label: 'Profile', path: '/profile' });
+    if (normalizedRole === 'user' || normalizedRole === 'client' || normalizedRole === 'client_pending') {
+      items.push({ label: 'Profile', path: '/profile' });
+    }
     items.push({ label: 'My Records', path: '/records' });
     items.push({ label: 'Book Expert', path: '/services' });
     if (normalizedRole === 'admin') items.push({ label: 'Users', path: '/admin/users' });
     return items;
   }, [normalizedRole, user]);
+
+  const roleLabel = useMemo(() => {
+    if (normalizedRole === 'admin') return 'Admin';
+    if (normalizedRole === 'employee') return 'Employee';
+    if (normalizedRole === 'client') return 'Client';
+    if (normalizedRole === 'client_pending') return 'Client Pending';
+    return 'User';
+  }, [normalizedRole]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -329,7 +341,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, onLogout }) => {
                   </div>
                   <div className="hidden lg:flex flex-col items-start leading-tight">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-400">
-                      {normalizedRole === 'admin' ? 'Admin' : normalizedRole === 'employee' ? 'Employee' : 'Client'}
+                      {roleLabel}
                     </span>
                     <span className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[160px]">
                       {user.name}

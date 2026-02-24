@@ -16,6 +16,7 @@ interface ProfileProps {
 
 const Profile: React.FC<ProfileProps> = ({ user }) => {
   const [profile, setProfile] = useState<ClientProfile | null>(null);
+  const [nameParts, setNameParts] = useState({ firstName: '', middleName: '', lastName: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [isAadhaarUploading, setIsAadhaarUploading] = useState(false);
 
@@ -24,13 +25,48 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
     setProfile(getProfile(user));
   }, [user]);
 
+  useEffect(() => {
+    if (!profile) return;
+    const parts = String(profile.name || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) {
+      setNameParts({ firstName: '', middleName: '', lastName: '' });
+      return;
+    }
+    if (parts.length === 1) {
+      setNameParts({ firstName: parts[0], middleName: '', lastName: '' });
+      return;
+    }
+    if (parts.length === 2) {
+      setNameParts({ firstName: parts[0], middleName: '', lastName: parts[1] });
+      return;
+    }
+    setNameParts({
+      firstName: parts[0],
+      middleName: parts.slice(1, -1).join(' '),
+      lastName: parts[parts.length - 1],
+    });
+  }, [profile?.name]);
+
   if (!user) return <Navigate to="/login" />;
   if (!profile) return <div className="max-w-4xl mx-auto px-4 py-16">Loading...</div>;
+  const normalizedRole = String(user.role || '').toLowerCase();
+  const profileLabel = normalizedRole === 'client' ? 'Client Profile' : 'User Profile';
 
   const onSave = async () => {
+    if (!nameParts.firstName.trim() || !nameParts.lastName.trim()) {
+      toast.error('First name and last name are required');
+      return;
+    }
     setIsSaving(true);
     try {
-      const saved = upsertProfile(profile);
+      const fullName = [nameParts.firstName, nameParts.middleName, nameParts.lastName]
+        .map((part) => String(part || '').trim())
+        .filter(Boolean)
+        .join(' ');
+      const saved = upsertProfile({ ...profile, name: fullName });
       setProfile(saved);
       toast.success('Profile saved');
       logActivity(user, 'UPDATE_PROFILE', 'Updated profile and notification preferences');
@@ -143,7 +179,7 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
   return (
     <div className="max-w-5xl mx-auto px-4 py-16 space-y-8">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Client Profile</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{profileLabel}</p>
         <h1 className="text-4xl font-black text-slate-900 dark:text-white mt-2">Your Profile</h1>
         <p className="text-slate-500 dark:text-slate-400 mt-2">
           Keep your details up to date so our team can process your cases faster.
@@ -154,10 +190,22 @@ const Profile: React.FC<ProfileProps> = ({ user }) => {
         <div className="p-8 space-y-10">
           <div className="grid md:grid-cols-2 gap-6">
             <Input
-              label="Full Name"
-              value={profile.name}
-              onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-              placeholder="Your name"
+              label="First Name"
+              value={nameParts.firstName}
+              onChange={(e) => setNameParts({ ...nameParts, firstName: e.target.value })}
+              placeholder="First name"
+            />
+            <Input
+              label="Middle Name"
+              value={nameParts.middleName}
+              onChange={(e) => setNameParts({ ...nameParts, middleName: e.target.value })}
+              placeholder="Middle name (optional)"
+            />
+            <Input
+              label="Last Name"
+              value={nameParts.lastName}
+              onChange={(e) => setNameParts({ ...nameParts, lastName: e.target.value })}
+              placeholder="Last name"
             />
             <Input label="Email" value={profile.email} readOnly disabled />
             <Input

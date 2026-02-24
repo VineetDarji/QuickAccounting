@@ -19,6 +19,7 @@ const buildPayload = () => ({
   calculations: parseKey<any[]>('tax_saved_calcs', []),
   inquiries: parseKey<any[]>('tax_inquiries', []),
   activities: parseKey<any[]>('tax_activities', []),
+  clientAccessRequests: parseKey<any[]>('tax_client_access_requests', []),
 });
 
 export const syncLocalDataToBackend = async () => {
@@ -41,4 +42,3 @@ export const scheduleLocalDataSync = (delayMs = 700) => {
     syncLocalDataToBackend();
   }, delayMs);
 };
-

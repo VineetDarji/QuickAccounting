@@ -166,6 +166,17 @@ export enum AgeGroup {
 
 export interface User {
   email: string;
-  role: 'user' | 'employee' | 'admin';
+  role: 'user' | 'client_pending' | 'client' | 'employee' | 'admin';
   name: string;
+}
+
+export interface ClientAccessRequest {
+  id: string;
+  email: string;
+  name: string;
+  reason?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: number;
+  decidedAt?: number;
+  decidedByEmail?: string;
 }

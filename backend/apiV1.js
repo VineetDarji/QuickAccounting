@@ -8,8 +8,28 @@ const mapRole = (role) => {
   const r = String(role || '').toLowerCase();
   if (r === 'admin') return 'ADMIN';
   if (r === 'employee') return 'EMPLOYEE';
+  if (r === 'client') return 'CLIENT';
+  if (r === 'client_pending') return 'CLIENT_PENDING';
   return 'USER';
 };
+
+const mapClientAccessRequestStatus = (status) => {
+  const s = String(status || '').toLowerCase();
+  if (s === 'approved') return 'APPROVED';
+  if (s === 'rejected') return 'REJECTED';
+  return 'PENDING';
+};
+
+const toClientAccessRequestDto = (row) => ({
+  id: row.id,
+  email: row.requestedEmail,
+  name: row.requestedName,
+  reason: row.reason || '',
+  status: String(row.status || 'PENDING').toLowerCase(),
+  createdAt: toMillis(row.createdAt) ?? Date.now(),
+  decidedAt: toMillis(row.decidedAt) ?? undefined,
+  decidedByEmail: row.decidedBy?.email || undefined,
+});
 
 const mapInquiryStatus = (status) =>
   String(status || '').toLowerCase() === 'responded' ? 'RESPONDED' : 'PENDING';
@@ -188,6 +208,7 @@ const createV1Router = ({ prisma }) => {
       const calculations = Array.isArray(payload.calculations) ? payload.calculations : [];
       const inquiries = Array.isArray(payload.inquiries) ? payload.inquiries : [];
       const activities = Array.isArray(payload.activities) ? payload.activities : [];
+      const clientAccessRequests = Array.isArray(payload.clientAccessRequests) ? payload.clientAccessRequests : [];
 
       const summary = {
         users: 0,
@@ -196,6 +217,7 @@ const createV1Router = ({ prisma }) => {
         calculations: 0,
         inquiries: 0,
         activities: 0,
+        clientAccessRequests: 0,
       };
 
       // Users
@@ -467,6 +489,47 @@ const createV1Router = ({ prisma }) => {
         }
 
         summary.cases++;
+      }
+
+      for (const request of clientAccessRequests) {
+        if (!request || !request.email) continue;
+        const requester = await ensureUser(prisma, {
+          email: String(request.email).trim(),
+          name: String(request.name || request.email),
+          role: request.status === 'approved' ? 'client' : request.status === 'pending' ? 'client_pending' : 'user',
+        });
+
+        let decidedBy = null;
+        const decidedByEmail = String(request.decidedByEmail || '').trim();
+        if (decidedByEmail) {
+          decidedBy = await ensureUser(prisma, { email: decidedByEmail, name: decidedByEmail, role: 'admin' });
+        }
+
+        await prisma.clientAccessRequest.upsert({
+          where: { id: String(request.id || '') || `legacy-${requester.id}-${String(request.createdAt || Date.now())}` },
+          update: {
+            userId: requester.id,
+            requestedName: String(request.name || requester.name || requester.email),
+            requestedEmail: String(request.email || requester.email),
+            reason: String(request.reason || ''),
+            status: mapClientAccessRequestStatus(request.status),
+            decidedAt: request.decidedAt ? new Date(Number(request.decidedAt)) : null,
+            decidedByUserId: decidedBy?.id || null,
+            createdAt: request.createdAt ? new Date(Number(request.createdAt)) : undefined,
+          },
+          create: {
+            id: String(request.id || '') || undefined,
+            userId: requester.id,
+            requestedName: String(request.name || requester.name || requester.email),
+            requestedEmail: String(request.email || requester.email),
+            reason: String(request.reason || ''),
+            status: mapClientAccessRequestStatus(request.status),
+            decidedAt: request.decidedAt ? new Date(Number(request.decidedAt)) : null,
+            decidedByUserId: decidedBy?.id || null,
+            createdAt: request.createdAt ? new Date(Number(request.createdAt)) : undefined,
+          },
+        });
+        summary.clientAccessRequests++;
       }
 
       res.json({ ok: true, summary });
@@ -1056,6 +1119,91 @@ const createV1Router = ({ prisma }) => {
     })
   );
 
+  // Client access requests
+  router.get(
+    '/client-access-requests',
+    asyncHandler(async (req, res) => {
+      const email = String(req.query.email || '').trim();
+      const status = req.query.status ? mapClientAccessRequestStatus(req.query.status) : undefined;
+      const rows = await prisma.clientAccessRequest.findMany({
+        where: {
+          ...(email ? { requestedEmail: email } : {}),
+          ...(status ? { status } : {}),
+        },
+        include: { decidedBy: { select: { email: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json(rows.map(toClientAccessRequestDto));
+    })
+  );
+
+  router.post(
+    '/client-access-requests',
+    asyncHandler(async (req, res) => {
+      const body = req.body || {};
+      const email = String(body.email || '').trim();
+      const name = String(body.name || '').trim();
+      if (!email) return res.status(400).json({ error: 'email is required' });
+
+      const user = await ensureUser(prisma, { email, name: name || email, role: 'client_pending' });
+
+      const existing = await prisma.clientAccessRequest.findFirst({
+        where: { requestedEmail: email, status: 'PENDING' },
+        include: { decidedBy: { select: { email: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (existing) return res.json(toClientAccessRequestDto(existing));
+
+      const created = await prisma.clientAccessRequest.create({
+        data: {
+          userId: user.id,
+          requestedName: name || user.name || email,
+          requestedEmail: email,
+          reason: String(body.reason || ''),
+          status: 'PENDING',
+        },
+        include: { decidedBy: { select: { email: true } } },
+      });
+      res.json(toClientAccessRequestDto(created));
+    })
+  );
+
+  router.patch(
+    '/client-access-requests/:id',
+    asyncHandler(async (req, res) => {
+      const id = String(req.params.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'id is required' });
+
+      const body = req.body || {};
+      const decision = mapClientAccessRequestStatus(body.status || body.decision);
+      if (decision === 'PENDING') return res.status(400).json({ error: 'decision must be approved or rejected' });
+
+      const decidedByEmail = String(body.decidedByEmail || '').trim();
+      const decidedBy = decidedByEmail
+        ? await ensureUser(prisma, { email: decidedByEmail, name: decidedByEmail, role: 'admin' })
+        : null;
+
+      const updated = await prisma.clientAccessRequest.update({
+        where: { id },
+        data: {
+          status: decision,
+          decidedAt: new Date(),
+          decidedByUserId: decidedBy?.id || null,
+        },
+        include: { decidedBy: { select: { email: true } } },
+      });
+
+      await prisma.user.update({
+        where: { id: updated.userId },
+        data: {
+          role: decision === 'APPROVED' ? 'CLIENT' : 'USER',
+        },
+      });
+
+      res.json(toClientAccessRequestDto(updated));
+    })
+  );
+
   // Dashboard summaries
   router.get(
     '/dashboard/admin',
@@ -1089,7 +1237,7 @@ const createV1Router = ({ prisma }) => {
       };
 
       const userStats = {
-        clients: users.filter((u) => u.role === 'USER').length,
+        clients: users.filter((u) => u.role === 'CLIENT' || u.role === 'USER').length,
         employees: users.filter((u) => u.role === 'EMPLOYEE').length,
         admins: users.filter((u) => u.role === 'ADMIN').length,
       };
@@ -1100,7 +1248,14 @@ const createV1Router = ({ prisma }) => {
       });
 
       const clients = users
-        .filter((u) => u.role === 'USER' || u.role === 'EMPLOYEE' || u.role === 'ADMIN')
+        .filter(
+          (u) =>
+            u.role === 'USER' ||
+            u.role === 'CLIENT_PENDING' ||
+            u.role === 'CLIENT' ||
+            u.role === 'EMPLOYEE' ||
+            u.role === 'ADMIN'
+        )
         .map((u) => ({
           name: u.name,
           email: u.email,

@@ -1,7 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Inquiry, SavedCalculation, User } from '../types';
+import toast from 'react-hot-toast';
+import { ClientAccessRequest, Inquiry, SavedCalculation, User } from '../types';
 import { listCasesForClient } from '../services/caseService';
+import { createClientAccessRequest, fetchPendingClientAccessRequestByEmail } from '../services/clientAccessService';
+import { logActivity } from '../services/activityService';
+import { useUserStore } from '../store/userStore';
+import { loadJson } from '../services/storageService';
 
 interface ClientDashboardProps {
   user: User | null;
@@ -9,13 +14,62 @@ interface ClientDashboardProps {
 
 const ClientDashboard: React.FC<ClientDashboardProps> = ({ user }) => {
   if (!user) return <Navigate to="/login" />;
+  const login = useUserStore((state) => state.login);
+  const role = String(user.role || '').toLowerCase();
+  const [existingRequest, setExistingRequest] = useState<ClientAccessRequest | null>(null);
+  const [isRequestLoading, setIsRequestLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchPendingClientAccessRequestByEmail(user.email)
+      .then((request) => {
+        if (!active) return;
+        setExistingRequest(request);
+        if (!request && role === 'client_pending') {
+          const users = loadJson<any[]>('quickaccounting_users', []);
+          const stored = users.find((item) => String(item?.email || '').toLowerCase() === String(user.email).toLowerCase());
+          const nextRole = String(stored?.role || '').toLowerCase();
+          if (nextRole === 'client' || nextRole === 'user') {
+            login({ ...user, role: nextRole as User['role'] });
+          }
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setExistingRequest(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [login, role, user, user.email]);
+
+  const submitClientAccessRequest = async () => {
+    if (role !== 'user') return;
+    setIsRequestLoading(true);
+    const created = await createClientAccessRequest({ email: user.email, name: user.name });
+    setIsRequestLoading(false);
+    if (!created) {
+      toast.error('Could not create request');
+      return;
+    }
+    logActivity(user, 'REQUEST_CLIENT_ACCESS', `${user.email} requested client access`);
+    login({ ...user, role: 'client_pending' });
+    setExistingRequest(created);
+    toast.success('Request sent to admin');
+  };
 
   const myCalculations = useMemo(() => {
     const all = JSON.parse(localStorage.getItem('tax_saved_calcs') || '[]') as SavedCalculation[];
     return all
-      .filter((c) => c && c.userName === user.name)
+      .filter((c) => {
+        if (!c) return false;
+        const recordEmail = String(c.userEmail || '').trim().toLowerCase();
+        const currentEmail = String(user.email || '').trim().toLowerCase();
+        if (recordEmail) return recordEmail === currentEmail;
+        return String(c.userName || '').trim().toLowerCase() === String(user.name || '').trim().toLowerCase();
+      })
       .sort((a, b) => b.timestamp - a.timestamp);
-  }, [user.name]);
+  }, [user.email, user.name]);
 
   const myInquiries = useMemo(() => {
     const all = JSON.parse(localStorage.getItem('tax_inquiries') || '[]') as Inquiry[];
@@ -34,6 +88,33 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({ user }) => {
   const latestCalc = myCalculations[0];
   const latestInquiry = myInquiries[0];
   const latestCase = myCases[0];
+
+  if (role !== 'client') {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <div className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-3xl p-8 shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Client Access</p>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-white mt-2">Client Dashboard is restricted</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-3">
+            Only approved clients can access this dashboard. Ask admin to grant your client role.
+          </p>
+          {role === 'client_pending' || existingRequest ? (
+            <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              Your request is pending admin approval.
+            </div>
+          ) : (
+            <button
+              onClick={submitClientAccessRequest}
+              disabled={isRequestLoading}
+              className="mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:shadow-lg transition-all"
+            >
+              {isRequestLoading ? 'Sending...' : 'Request Client Access'}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-16 space-y-10">

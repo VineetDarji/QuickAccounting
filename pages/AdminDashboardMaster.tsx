@@ -128,7 +128,16 @@ const AdminDashboardMaster: React.FC<AdminDashboardMasterProps> = ({ user }) => 
     }
 
     const fromUsers = storedUsers
-      .filter((u) => u && (u.role === 'user' || u.role === 'employee' || u.role === 'admin' || !u.role))
+      .filter(
+        (u) =>
+          u &&
+          (u.role === 'user' ||
+            u.role === 'client_pending' ||
+            u.role === 'client' ||
+            u.role === 'employee' ||
+            u.role === 'admin' ||
+            !u.role)
+      )
       .map((u) => ({
         name: String(u.name || ''),
         email: String(u.email || ''),
@@ -221,7 +230,7 @@ const AdminDashboardMaster: React.FC<AdminDashboardMasterProps> = ({ user }) => 
         employees: Number(remoteData.stats.employees || 0),
       };
     }
-    const clients = storedUsers.filter((u) => String(u.role || 'user') === 'user').length;
+    const clients = storedUsers.filter((u) => String(u.role || '').toLowerCase() === 'client').length;
     const employees = storedUsers.filter((u) => u.role === 'employee').length;
     return { clients, employees };
   }, [storedUsers, remoteData]);

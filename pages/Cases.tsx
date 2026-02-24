@@ -114,7 +114,7 @@ const Cases: React.FC<CasesProps> = ({ user }) => {
           >
             Profile
           </Link>
-          {(user.role === 'user' || user.role === 'admin') && (
+          {(user.role === 'client' || user.role === 'admin') && (
             <Button onClick={() => setIsCreating((v) => !v)}>{isCreating ? 'Close' : 'New Case'}</Button>
           )}
         </div>
@@ -225,7 +225,7 @@ const Cases: React.FC<CasesProps> = ({ user }) => {
           ))}
           {filtered.length === 0 && (
             <div className="p-12 text-center text-slate-400 font-bold">
-              No cases found. {user.role === 'user' ? 'Create one to start.' : ''}
+              No cases found. {user.role === 'client' ? 'Create one to start.' : ''}
             </div>
           )}
         </div>
@@ -235,4 +235,3 @@ const Cases: React.FC<CasesProps> = ({ user }) => {
 };
 
 export default Cases;
-

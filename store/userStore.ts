@@ -11,6 +11,8 @@ const normalizeRole = (role: string): User['role'] => {
   const value = String(role || '').toLowerCase();
   if (value === 'admin') return 'admin';
   if (value === 'employee') return 'employee';
+  if (value === 'client') return 'client';
+  if (value === 'client_pending') return 'client_pending';
   return 'user';
 };
 

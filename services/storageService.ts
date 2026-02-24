@@ -18,7 +18,8 @@ export const saveJson = (key: string, value: unknown) => {
     key === 'tax_cases' ||
     key === 'tax_saved_calcs' ||
     key === 'tax_inquiries' ||
-    key === 'tax_activities'
+    key === 'tax_activities' ||
+    key === 'tax_client_access_requests'
   ) {
     scheduleLocalDataSync();
   }

@@ -39,7 +39,9 @@ const Login: React.FC = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [newConfirmPassword, setNewConfirmPassword] = useState('');
-    const [fullName, setFullName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [middleName, setMiddleName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
     const [step, setStep] = useState<'credentials' | 'verification' | 'reset_password'>('credentials');
     const [error, setError] = useState('');
@@ -64,6 +66,12 @@ const Login: React.FC = () => {
     const isValidPassword = (password: string) => {
         return password.length >= 6;
     };
+
+    const buildFullName = () =>
+        [firstName, middleName, lastName]
+            .map((part) => String(part || '').trim())
+            .filter(Boolean)
+            .join(' ');
 
     // Check if email already exists
     const emailExists = (email: string) => {
@@ -253,8 +261,14 @@ const Login: React.FC = () => {
         setIsLoading(true);
 
         // Validations
-        if (!fullName.trim()) {
-            setError('Please enter your full name');
+        if (!firstName.trim()) {
+            setError('Please enter your first name');
+            setIsLoading(false);
+            return;
+        }
+
+        if (!lastName.trim()) {
+            setError('Please enter your last name');
             setIsLoading(false);
             return;
         }
@@ -393,6 +407,7 @@ const Login: React.FC = () => {
 
             if (isSignUp) {
                 // Register new user
+                const fullName = buildFullName();
                 const newUser = {
                     email,
                     password,
@@ -456,19 +471,48 @@ const Login: React.FC = () => {
                         className="space-y-6"
                     >
                         {isSignUp && (
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={fullName}
-                                    onChange={(e) => {
-                                        setFullName(e.target.value);
-                                        setError('');
-                                    }}
-                                    className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
-                                    placeholder="Your full name"
-                                />
+                            <div className="grid md:grid-cols-3 gap-3">
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">First Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={firstName}
+                                        onChange={(e) => {
+                                            setFirstName(e.target.value);
+                                            setError('');
+                                        }}
+                                        className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                        placeholder="First"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Middle Name</label>
+                                    <input
+                                        type="text"
+                                        value={middleName}
+                                        onChange={(e) => {
+                                            setMiddleName(e.target.value);
+                                            setError('');
+                                        }}
+                                        className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                        placeholder="Middle (optional)"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Last Name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={lastName}
+                                        onChange={(e) => {
+                                            setLastName(e.target.value);
+                                            setError('');
+                                        }}
+                                        className="w-full p-3 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 outline-none"
+                                        placeholder="Last"
+                                    />
+                                </div>
                             </div>
                         )}
 
@@ -574,7 +618,9 @@ const Login: React.FC = () => {
                                         setEmail('');
                                         setPassword('');
                                         setConfirmPassword('');
-                                        setFullName('');
+                                        setFirstName('');
+                                        setMiddleName('');
+                                        setLastName('');
                                     }}
                                     className="w-full text-indigo-600 dark:text-indigo-400 py-2 font-semibold hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
                                 >
